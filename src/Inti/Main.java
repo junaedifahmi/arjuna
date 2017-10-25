@@ -8,7 +8,11 @@ import java.util.Random;
 
 import weka.classifiers.Classifier;
 import weka.classifiers.evaluation.Evaluation;
+import weka.classifiers.functions.Logistic;
+import weka.classifiers.rules.FURIA;
 import weka.classifiers.trees.J48;
+import weka.core.Attribute;
+import weka.core.Instance;
 import weka.core.Instances;
 import weka.core.converters.CSVLoader;
 
@@ -38,7 +42,7 @@ public class Main {
 
 		// replace missing
 
-		replaceMiss();
+		replaceMiss(withMiss);
 
 		// build model
 
@@ -46,7 +50,7 @@ public class Main {
 
 		// evaluation
 
-		evaluation(data);
+		evaluation();
 
 	}
 
@@ -64,40 +68,50 @@ public class Main {
 	private static void splitData(Instances data) throws Exception {
 		// TODO Auto-generated method stub
 		withMiss = new Instances(data, data.numInstances());
-		for (int i = 0; i < data.numInstances(); i++) {
-			if (data.instance(i).hasMissingValue()) {
-				withMiss.add(data.instance(i));
-				if (data.remove(i) == null) {
-					System.out.println("Instances no " + i + " cannot be removed");
+		for (Instance datum : data) {
+			if (datum.hasMissingValue()) {
+				withMiss.add(datum);
+				data.remove(datum);
+			}
+		}
+	}
+
+	private static void replaceMiss(Instances MissData) throws Exception {
+		for (Instance datum : MissData) {
+			for (int i = 0; i < datum.numAttributes(); i++) {
+				Attribute att = datum.attribute(i);
+				if (datum.isMissing(att)) {
+					ganti(datum, i);
 				}
 			}
 		}
-		System.out.println(data.instance(0));
-		System.out.println(data.instance(74));
-
-		System.out.println("##############");
-		// System.out.println(withMiss);
 
 	}
 
-	private static void replaceMiss() {
+	private static double ganti(Instance datum, int i) throws Exception {
 		// TODO Auto-generated method stub
+		Attribute att = datum.attribute(i);
+		if (att.isNominal()) {
+			model = new FURIA();
+		} else {
+			model = new Logistic();
+		}
+
+		data.setClassIndex(i);
+		model.buildClassifier(data);
+		return model.classifyInstance(datum);
 
 	}
 
 	private static void mainModel() throws Exception {
-		// TODO Auto-generated method stub
 		data.setClassIndex(data.numAttributes() - 1);
 		model = new J48();
+		// ((J48) model).setUnpruned(false);
 		model.buildClassifier(data);
-		System.out.println("###############################################");
-		System.out.println(model);
-		System.out.println("###############################################");
-
+		System.out.println(data);
 	}
 
-	private static void evaluation(Instances data) throws Exception {
-		// TODO Auto-generated method stub
+	private static void evaluation() throws Exception {
 		Evaluation eval = new Evaluation(data);
 		eval.crossValidateModel(model, data, 10, new Random(0));
 		System.out.println(eval.toSummaryString());
